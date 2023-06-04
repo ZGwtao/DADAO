@@ -42,13 +42,13 @@ DadaoRegisterInfo::getCalleeSavedRegs(const MachineFunction * /*MF*/) const {
 BitVector DadaoRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
 
+  Reserved.set(Dadao::RD0, Dadao::RD8);
+  Reserved.set(Dadao::RB0, Dadao::RB8);
   Reserved.set(Dadao::RDZERO);
-  Reserved.set(Dadao::RBIP);
   Reserved.set(Dadao::RBSP);
   Reserved.set(Dadao::RBFP);
-  Reserved.set(Dadao::RBCA);
-  if (hasBasePointer(MF))
-    Reserved.set(getBaseRegister());
+  Reserved.set(Dadao::RAVV);
+  Reserved.set(Dadao::RASP);
   return Reserved;
 }
 
@@ -142,11 +142,10 @@ bool DadaoRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     // Reg = FrameReg OP Reg
     if (MI.getOpcode() == Dadao::ADDI_RRII) {
       BuildMI(*MI.getParent(), II, DL,
-              HasNegOffset ? TII->get(Dadao::SUB_RRRR) : TII->get(Dadao::ADD_RRRR),
+              HasNegOffset ? TII->get(Dadao::SUB_RB_ORRR) : TII->get(Dadao::ADD_RB_ORRR),
               MI.getOperand(0).getReg())
           .addReg(FrameReg)
-          .addReg(Reg)
-          .addImm(LPCC::ICC_T);
+          .addReg(Reg);
       MI.eraseFromParent();
       return true;
     }
