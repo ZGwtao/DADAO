@@ -12,8 +12,8 @@
 
 #include "DadaoInstPrinter.h"
 #include "DadaoMCExpr.h"
-#include "DadaoAluCode.h"
 #include "DadaoCondCode.h"
+#include "DadaoWydePosition.h"
 #include "MCTargetDesc/DadaoMCTargetDesc.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
@@ -43,67 +43,6 @@ bool DadaoInstPrinter::printInst(const MCInst *MI, raw_ostream &OS,
   OS << ", ";
   printOperand(MI, OpNo1, OS);
   return true;
-}
-
-static bool usesGivenOffset(const MCInst *MI, int AddOffset) {
-  unsigned AluCode = MI->getOperand(3).getImm();
-  return LPAC::encodeDadaoAluCode(AluCode) == LPAC::ADD &&
-         (MI->getOperand(2).getImm() == AddOffset ||
-          MI->getOperand(2).getImm() == -AddOffset);
-}
-
-static bool isPreIncrementForm(const MCInst *MI, int AddOffset) {
-  unsigned AluCode = MI->getOperand(3).getImm();
-  return LPAC::isPreOp(AluCode) && usesGivenOffset(MI, AddOffset);
-}
-
-static bool isPostIncrementForm(const MCInst *MI, int AddOffset) {
-  unsigned AluCode = MI->getOperand(3).getImm();
-  return LPAC::isPostOp(AluCode) && usesGivenOffset(MI, AddOffset);
-}
-
-static StringRef decIncOperator(const MCInst *MI) {
-  if (MI->getOperand(2).getImm() < 0)
-    return "--";
-  return "++";
-}
-
-bool DadaoInstPrinter::printMemoryLoadIncrement(const MCInst *MI,
-                                                raw_ostream &OS,
-                                                StringRef Opcode,
-                                                int AddOffset) {
-  if (isPreIncrementForm(MI, AddOffset)) {
-    OS << "\t" << Opcode << "\t[" << decIncOperator(MI) << "%"
-       << getRegisterName(MI->getOperand(1).getReg()) << "], %"
-       << getRegisterName(MI->getOperand(0).getReg());
-    return true;
-  }
-  if (isPostIncrementForm(MI, AddOffset)) {
-    OS << "\t" << Opcode << "\t[%"
-       << getRegisterName(MI->getOperand(1).getReg()) << decIncOperator(MI)
-       << "], %" << getRegisterName(MI->getOperand(0).getReg());
-    return true;
-  }
-  return false;
-}
-
-bool DadaoInstPrinter::printMemoryStoreIncrement(const MCInst *MI,
-                                                 raw_ostream &OS,
-                                                 StringRef Opcode,
-                                                 int AddOffset) {
-  if (isPreIncrementForm(MI, AddOffset)) {
-    OS << "\t" << Opcode << "\t%" << getRegisterName(MI->getOperand(0).getReg())
-       << ", [" << decIncOperator(MI) << "%"
-       << getRegisterName(MI->getOperand(1).getReg()) << "]";
-    return true;
-  }
-  if (isPostIncrementForm(MI, AddOffset)) {
-    OS << "\t" << Opcode << "\t%" << getRegisterName(MI->getOperand(0).getReg())
-       << ", [%" << getRegisterName(MI->getOperand(1).getReg())
-       << decIncOperator(MI) << "]";
-    return true;
-  }
-  return false;
 }
 
 void DadaoInstPrinter::printInst(const MCInst *MI, uint64_t Address,
@@ -167,9 +106,7 @@ void DadaoInstPrinter::printLo16AndImmOperand(const MCInst *MI, unsigned OpNo,
 
 static void printMemoryBaseRegister(raw_ostream &OS, const MCOperand &RegOp) {
   assert(RegOp.isReg() && "Register operand expected");
-  OS << "[";
   OS << "%" << DadaoInstPrinter::getRegisterName(RegOp.getReg());
-  OS << "]";
 }
 
 template <unsigned SizeInBits>
@@ -190,11 +127,13 @@ void DadaoInstPrinter::printMemRRIIOperand(const MCInst *MI, int OpNo,
   const MCOperand &RegOp = MI->getOperand(OpNo);
   const MCOperand &OffsetOp = MI->getOperand(OpNo + 1);
 
-  // Offset
-  printMemoryImmediateOffset<12>(MAI, OffsetOp, OS);
-
+  OS << "[";
   // Register
   printMemoryBaseRegister(OS, RegOp);
+  OS << ", ";
+  // Offset
+  printMemoryImmediateOffset<12>(MAI, OffsetOp, OS);
+  OS << "]";
 }
 
 void DadaoInstPrinter::printMemRRRIOperand(const MCInst *MI, int OpNo,
@@ -224,15 +163,15 @@ void DadaoInstPrinter::printCCOperand(const MCInst *MI, int OpNo,
     OS << dadaoCondCodeToString(CC);
 }
 
-void DadaoInstPrinter::printPredicateOperand(const MCInst *MI, unsigned OpNo,
+void DadaoInstPrinter::printWPosOperand(const MCInst *MI, unsigned OpNo,
                                              raw_ostream &OS) {
-  LPCC::CondCode CC =
-      static_cast<LPCC::CondCode>(MI->getOperand(OpNo).getImm());
+  DDWP::WydePosition WP =
+      static_cast<DDWP::WydePosition>(MI->getOperand(OpNo).getImm());
   // Handle the undefined value here for printing so we don't abort().
-  if (CC >= LPCC::UNKNOWN)
+  if (WP >= DDWP::BEYOND)
     OS << "<und>";
-  else if (CC != LPCC::ICC_T)
-    OS << "." << dadaoCondCodeToString(CC);
+  else
+    OS << dadaoWydePositionToString(WP);
 }
 
 void DadaoInstPrinter::printLo12AndImmOperand(const MCInst *MI, unsigned OpNo,

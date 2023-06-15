@@ -12,8 +12,8 @@
 
 #include "DadaoDisassembler.h"
 
-#include "DadaoAluCode.h"
 #include "DadaoCondCode.h"
+#include "DadaoWydePosition.h"
 #include "DadaoInstrInfo.h"
 #include "TargetInfo/DadaoTargetInfo.h"
 #include "llvm/MC/MCDecoderOps.h"
@@ -62,6 +62,10 @@ static DecodeStatus decodeRRRIMemoryValue(MCInst &Inst, unsigned Insn,
 static DecodeStatus decodeBranch(MCInst &Inst, unsigned Insn, uint64_t Address,
                                  const MCDisassembler *Decoder);
 
+static DecodeStatus decodeWPosOperand(MCInst &Inst, unsigned wpos,
+                                            uint64_t Address,
+                                            const MCDisassembler *Decoder);
+
 #include "DadaoGenDisassemblerTables.inc"
 
 static DecodeStatus readInstruction32(ArrayRef<uint8_t> Bytes, uint64_t &Size,
@@ -77,34 +81,6 @@ static DecodeStatus readInstruction32(ArrayRef<uint8_t> Bytes, uint64_t &Size,
       (Bytes[0] << 24) | (Bytes[1] << 16) | (Bytes[2] << 8) | (Bytes[3] << 0);
 
   return MCDisassembler::Success;
-}
-
-static void PostOperandDecodeAdjust(MCInst &Instr, uint32_t Insn) {
-  unsigned AluOp = LPAC::ADD;
-  // Fix up for pre and post operations.
-  int PqShift = -1;
-
-  if (PqShift != -1) {
-    unsigned PQ = (Insn >> PqShift) & 0x3;
-    switch (PQ) {
-    case 0x0:
-      if (Instr.getOperand(2).isReg()) {
-        Instr.getOperand(2).setReg(Dadao::RDZERO);
-      }
-      if (Instr.getOperand(2).isImm())
-        Instr.getOperand(2).setImm(0);
-      break;
-    case 0x1:
-      AluOp = LPAC::makePostOp(AluOp);
-      break;
-    case 0x2:
-      break;
-    case 0x3:
-      AluOp = LPAC::makePreOp(AluOp);
-      break;
-    }
-    Instr.addOperand(MCOperand::createImm(AluOp));
-  }
 }
 
 DecodeStatus
@@ -123,7 +99,6 @@ DadaoDisassembler::getInstruction(MCInst &Instr, uint64_t &Size,
       decodeInstruction(DecoderTableDadao32, Instr, Insn, Address, this, STI);
 
   if (Result != MCDisassembler::Fail) {
-    PostOperandDecodeAdjust(Instr, Insn);
     Size = 4;
     return Result;
   }
@@ -212,5 +187,14 @@ static DecodeStatus decodeBranch(MCInst &MI, unsigned Insn, uint64_t Address,
   if (!tryAddingSymbolicOperand(Insn + Address, false, Address, 2, 23, MI,
                                 Decoder))
     MI.addOperand(MCOperand::createImm(Insn));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus decodeWPosOperand(MCInst &Inst, unsigned wpos,
+                                            uint64_t Address,
+                                            const MCDisassembler *Decoder) {
+  if (wpos >= DDWP::BEYOND)
+    return MCDisassembler::Fail;
+  Inst.addOperand(MCOperand::createImm(wpos));
   return MCDisassembler::Success;
 }
