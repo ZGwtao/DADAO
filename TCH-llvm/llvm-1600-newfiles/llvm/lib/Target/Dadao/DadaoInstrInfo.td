@@ -17,7 +17,7 @@
 include "DadaoInstrFormats.td"
 
 //  These are target-independent nodes, but have target-specific formats.
-def SDT_DadaoSetFlag      : SDTypeProfile<0,  2, [SDTCisSameAs<0, 1>]>;
+def SDT_DadaoSetFlag      : SDTypeProfile<0,  3, [SDTCisSameAs<0, 1>]>;
 def SDT_DadaoBrCC         : SDTypeProfile<0,  2, [SDTCisVT<0, OtherVT>, SDTCisVT<1, i64>]>;
 def SDT_DadaoSetCC        : SDTypeProfile<1,  1, [SDTCisVT<0, i64>,
                                                   SDTCisVT<1, i64>]>;
@@ -250,8 +250,8 @@ class R2R_ORRI<bits<6> minorop, string OpcString, RegisterClass GPRx, RegisterCl
 // TODO: ONLY imm6 == 0 permitted, fixme later
 let Imm6 = 0b000000 in {
   def RD2RD_ORRI : R2R_ORRI<0b101000, "setrd", GPRD, GPRD>;
-  def RD2RB_ORRI : R2R_ORRI<0b101001, "setrb", GPRD, GPRB>;
-  def RB2RD_ORRI : R2R_ORRI<0b101010, "setrd", GPRB, GPRD>;
+  def RD2RB_ORRI : R2R_ORRI<0b101001, "setrb", GPRB, GPRD>;
+  def RB2RD_ORRI : R2R_ORRI<0b101010, "setrd", GPRD, GPRB>;
   def RB2RB_ORRI : R2R_ORRI<0b101011, "setrb", GPRB, GPRB>;
 }
 
@@ -296,10 +296,9 @@ def : Pat<(sub GPRB:$Rs1, i64neg12:$imm),
 // -------------------------------------------------- //
 
 class COMPARE_ORRR<bits<6> minorop, string OpcString, RegisterClass GPRcmp>
-  : Inst_ORRR<0b00010000, minorop, (outs GPRD:$RxHb), (ins GPRcmp:$RyHc, GPRcmp:$RzHd), OpcString, "$RxHb, $RyHc, $RzHd",
-             [(set GPRD:$RxHb, (DadaoSetFlag GPRcmp:$RyHc, GPRcmp:$RzHd))]> {
+  : Inst_ORRR<0b00010000, minorop, (outs), (ins GPRD:$RxHb, GPRcmp:$RyHc, GPRcmp:$RzHd), OpcString, "$RxHb, $RyHc, $RzHd",
+             [(DadaoSetFlag GPRD:$RxHb, GPRcmp:$RyHc, GPRcmp:$RzHd)]> {
 
-  let RxHb = RDCC.Num;
   let Defs = [RDCC];
   let isCompare = 1;
 }
@@ -310,10 +309,9 @@ def CMPU_ORRR   : COMPARE_ORRR<0b100101, "cmpu", GPRD>;
 def CMP_ORRR    : COMPARE_ORRR<0b101101, "cmp",  GPRB>;
 
 class COMPARE_RRII<bits<8> majorop, string OpcString, PatLeaf LoExt>
-  : Inst_RRII<majorop, (outs GPRD:$RxHa), (ins GPRD:$RyHb, LoExt:$Imm12), OpcString, "$RxHa, $RyHb, $Imm12",
-             [(set GPRD:$RxHa, (DadaoSetFlag GPRD:$RyHb, LoExt:$Imm12))]> {
+  : Inst_RRII<majorop, (outs), (ins GPRD:$RxHa, GPRD:$RyHb, LoExt:$Imm12), OpcString, "$RxHa, $RyHb, $Imm12",
+             [(DadaoSetFlag GPRD:$RxHa, GPRD:$RyHb, LoExt:$Imm12)]> {
 
-  let RxHa = RDCC.Num;
   let Defs = [RDCC];
   let isCompare = 1;
 }
