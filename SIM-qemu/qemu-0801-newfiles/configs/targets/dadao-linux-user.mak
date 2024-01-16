@@ -1,0 +1,2 @@
+TARGET_ARCH=dadao
+TARGET_BASE_ARCH=dadao

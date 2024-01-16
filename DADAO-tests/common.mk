@@ -9,6 +9,7 @@ DADAO_ELF_READELF		:= $(DADAO_ELF_PREFIX)readelf
 DADAO_ELF_OBJDUMP		:= $(DADAO_ELF_PREFIX)objdump
 DADAO_ELF_OBJCOPY		:= $(DADAO_ELF_PREFIX)objcopy
 DADAO_ELF_GCC			:= $(DADAO_ELF_PREFIX)gcc
+DADAO_ELF_COLLECT2		:= $(DIR_DADAO_INSTALL)/libexec/gcc/dadao-unknown-elf/10.3.0/collect2
 
 DADAO_GNU_PREFIX		?= $(DIR_DADAO_INSTALL)/bin/dadao-linux-gnu-
 DADAO_GNU_GAS			:= $(DADAO_GNU_PREFIX)as
@@ -30,3 +31,4 @@ DADAO_LLVM_AS			:= $(DIR_DADAO_BUILD)/llvm-1600/bin/llvm-as
 DADAO_LLVM_MC			:= $(DIR_DADAO_BUILD)/llvm-1600/bin/llvm-mc
 DADAO_LLVM_READOBJ		:= $(DIR_DADAO_BUILD)/llvm-1600/bin/llvm-readobj
 DADAO_LLVM_OBJDUMP		:= $(DIR_DADAO_BUILD)/llvm-1600/bin/llvm-objdump
+DADAO_LLVM_LLD			:= $(DIR_DADAO_BUILD)/llvm-1600/bin/ld.lld
